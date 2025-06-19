@@ -11,7 +11,15 @@ from helpers.load_data import load_r2_parquet
 app_ui = ui.page_navbar(
     ui.nav_panel(
         'Home',
-        'Home page content',
+        ui.h1('Explore RLCS 1v1 Statistics'),
+        ui.tags.ol(
+            ui.tags.li('Find games that match specific criteria'),
+            ui.tags.li('Dive into player statistics'),
+            ui.tags.li('Compare players head to head'),
+            ui.tags.li('Check player camera settings')
+        ),
+        ui.p('All data comes from ', ui.a('Ballchasing', href='https://ballchasing.com/group/1v1-events-spqzm3tx17', target='_blank')),
+        ui.h3('All data comes from '),
         output_widget('plot_map_count'),
         ui.output_ui('table_map_count')
     ),
@@ -29,7 +37,11 @@ app_ui = ui.page_navbar(
     ),
     ui.nav_panel(
         'Player Settings',
-        'Player settings page context'
+        ui.h1('Player Settings'),
+        ui.output_ui('player_selectize'),
+        ui.h3('Camera Settings'),
+        ui.output_ui('latest_10_camera_settings'),
+        ui.h3('Car Selection')
     ),
     
     title = 'RL Ones',
@@ -51,6 +63,25 @@ def server(input, output, session):
         .len()
     )
 
+    ## Common helpers
+    @render.ui
+    def player_selectize():
+        lst_players = (
+            df_players
+            .select('name')
+            .sort('name')
+            .get_column('name')
+            .to_list()
+        )
+        dict_players = {name : name for name in lst_players}
+
+        return ui.input_selectize(
+            'player_select',
+            'Select a player:',
+            dict_players,
+            selected = 'ApparentlyJack'
+        )
+
     @render_altair
     def plot_map_count():
         return alt.Chart(df_map_count).mark_bar().encode(
@@ -61,6 +92,25 @@ def server(input, output, session):
     @render.ui
     def table_map_count():
         return gt.GT(df_map_count)
+
+    ## Player settings
+    @render.ui
+    def latest_10_camera_settings():
+        df_latest_camera = (
+            df_player_settings
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .sort(by='date', descending=True)
+            .select('fov', 'height', 'pitch', 'distance', 'stiffness', 'swivel_speed', 'transition_speed', 'steering_sensitivity')
+            .unique()
+            .limit(10)
+        )
+
+        return (
+            gt.GT(df_latest_camera)
+            .tab_header(title='10 most recent distinct camera settings', subtitle='Sorted by most recent games')
+            .tab_source_note(source_note='Less than 10 rows indicates less than 10 distinct camera settings in the data')
+        )
 
 
 app = App(app_ui, server)
