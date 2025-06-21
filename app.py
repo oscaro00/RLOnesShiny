@@ -6,43 +6,22 @@ import altair as alt
 
 from helpers.load_data import load_r2_parquet
 
+from pages.home import home_page
+from pages.game_finder import game_finder_page
+from pages.player_stats import player_stats_page
+from pages.comparison_tool import comparison_tool_page
+from pages.player_settings import player_settings_page
 
 # Add page title and sidebar
 app_ui = ui.page_navbar(
-    ui.nav_panel(
-        'Home',
-        ui.h1('Explore RLCS 1v1 Statistics'),
-        ui.tags.ol(
-            ui.tags.li('Find games that match specific criteria'),
-            ui.tags.li('Dive into player statistics'),
-            ui.tags.li('Compare players head to head'),
-            ui.tags.li('Check player camera settings')
-        ),
-        ui.p('All data comes from ', ui.a('Ballchasing', href='https://ballchasing.com/group/1v1-events-spqzm3tx17', target='_blank')),
-        ui.h3('All data comes from '),
-        output_widget('plot_map_count'),
-        ui.output_ui('table_map_count')
-    ),
-    ui.nav_panel(
-        'Game Finder',
-        'Game finder page context'
-    ),
-    ui.nav_panel(
-        'Player Stats',
-        'Player stats page context'
-    ),
-    ui.nav_panel(
-        'Comparison Tool',
-        'Comparison tool page context'
-    ),
-    ui.nav_panel(
-        'Player Settings',
-        ui.h1('Player Settings'),
-        ui.output_ui('player_selectize'),
-        ui.h3('Camera Settings'),
-        ui.output_ui('latest_10_camera_settings'),
-        ui.h3('Car Selection')
-    ),
+    # put the style sheet on pages to avoid removing the header and sidebar formatting
+    #ui.tags.link(rel='stylesheet', href='https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css'),
+    
+    home_page,
+    game_finder_page,
+    player_stats_page,
+    comparison_tool_page,
+    player_settings_page,
     
     title = 'RL Ones',
     id = 'rl_ones_navbar',
@@ -110,6 +89,46 @@ def server(input, output, session):
             gt.GT(df_latest_camera)
             .tab_header(title='10 most recent distinct camera settings', subtitle='Sorted by most recent games')
             .tab_source_note(source_note='Less than 10 rows indicates less than 10 distinct camera settings in the data')
+        )
+
+    @render.ui
+    def all_camera_settings():
+        df_camera = (
+            df_player_settings
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .sort(by='date', descending=True)
+            .select(pl.col('id').alias('game id'), 'fov', 'height', 'pitch', 'distance', 'stiffness', 'swivel_speed', 'transition_speed', 'steering_sensitivity')
+        )
+
+        return (
+            gt.GT(df_camera)
+            .tab_header(title='All camera settings', subtitle='Sorted by most recent games')
+        )
+
+    @render.ui
+    def vb_pct_series_camera_chg():
+        df_pct_camera_chg = (
+            df_player_settings
+            .join(df_games, on='id', how='inner')
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .select('group_id', 'fov', 'height', 'pitch', 'distance', 'stiffness', 'swivel_speed', 'transition_speed', 'steering_sensitivity')
+            .group_by('group_id')
+            .agg(
+                pl.struct(pl.all().exclude('group_id')).n_unique().alias('distinct_combinations')
+            )
+            .with_columns(
+                pl.when(pl.col('distinct_combinations') > 1).then(1).otherwise(0).alias('mid_series_switch_flag')
+            )
+            .select('mid_series_switch_flag')
+            .mean()
+        )
+
+        # https://shiny.posit.co/py/components/outputs/value-box/
+        return ui.value_box(
+            'Percent of series with a camera setting change',
+            df_pct_camera_chg.item()
         )
 
 
