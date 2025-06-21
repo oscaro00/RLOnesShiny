@@ -4,4 +4,6 @@ version = "0.1.0"
 description = "A python shiny app for the RL Ones data"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "shinyswatch>=0.9.0",
+]
