@@ -29,5 +29,20 @@ player_settings_page = ui.nav_panel(
             ),
         )
     ),
-    ui.h3('Car Selection')
+    ui.h3('Car Selection'),
+    ui.row(
+        ui.column(4, ui.output_ui('vb_count_unique_cars')),
+        ui.column(4, ui.output_ui('vb_pct_series_car_chg')),
+        ui.column(4, ui.output_ui('vb_most_used_car'))
+    ),
+    ui.row(
+        ui.column(
+            9,
+            ui.card(
+                ui.card_header('Cars used by series and game'),
+                ui.output_data_frame('all_cars_used'),
+                height='400px'
+            ),
+        ),
+    )
 )

@@ -103,6 +103,19 @@ def server(input, output, session):
         )
 
         return render.DataGrid(df_camera.rename({col: col.replace('_', ' ') for col in df_camera.columns}))
+    
+    @render.data_frame
+    def all_cars_used():
+        df_cars = (
+            df_player_settings
+            .join(df_games, on='id', how='inner')
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .sort('date')
+            .select('group_id', pl.col('id').alias('game id'), 'car_name')
+        )
+
+        return render.DataGrid(df_cars.rename({col: col.replace('_', ' ') for col in df_cars.columns}), width='90%')
 
     @render.ui
     def vb_count_unique_camera_settings():
@@ -122,7 +135,8 @@ def server(input, output, session):
         return ui.value_box(
             'Number of distinct camera settings',
             f'{df_total_camera.item()}',
-            showcase=camera_svg
+            showcase=camera_svg,
+            height='150px'
         )
 
     @render.ui
@@ -150,7 +164,8 @@ def server(input, output, session):
         return ui.value_box(
             'Percent of series with a camera setting change',
             f'{df_pct_camera_chg.item() * 100}%',
-            showcase=wrench_svg
+            showcase=wrench_svg,
+            height='150px'
         )
     
     @render.ui
@@ -169,8 +184,83 @@ def server(input, output, session):
         return ui.value_box(
             'Date of latest data',
             f'{str(df_latest_date.item()).split(' ')[0]}',
-            showcase=calendar_svg
+            showcase=calendar_svg,
+            height='150px'
         )
 
+    @render.ui
+    def vb_count_unique_cars():
+        car_svg = ui.HTML('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="100%" fill="currentColor" class="bi bi-car-front" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0m10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M6 8a1 1 0 0 0 0 2h4a1 1 0 1 0 0-2zM4.862 4.276 3.906 6.19a.51.51 0 0 0 .497.731c.91-.073 2.35-.17 3.597-.17s2.688.097 3.597.17a.51.51 0 0 0 .497-.731l-.956-1.913A.5.5 0 0 0 10.691 4H5.309a.5.5 0 0 0-.447.276"/><path d="M2.52 3.515A2.5 2.5 0 0 1 4.82 2h6.362c1 0 1.904.596 2.298 1.515l.792 1.848c.075.175.21.319.38.404.5.25.855.715.965 1.262l.335 1.679q.05.242.049.49v.413c0 .814-.39 1.543-1 1.997V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-1.338c-1.292.048-2.745.088-4 .088s-2.708-.04-4-.088V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-1.892c-.61-.454-1-1.183-1-1.997v-.413a2.5 2.5 0 0 1 .049-.49l.335-1.68c.11-.546.465-1.012.964-1.261a.8.8 0 0 0 .381-.404l.792-1.848ZM4.82 3a1.5 1.5 0 0 0-1.379.91l-.792 1.847a1.8 1.8 0 0 1-.853.904.8.8 0 0 0-.43.564L1.03 8.904a1.5 1.5 0 0 0-.03.294v.413c0 .796.62 1.448 1.408 1.484 1.555.07 3.786.155 5.592.155s4.037-.084 5.592-.155A1.48 1.48 0 0 0 15 9.611v-.413q0-.148-.03-.294l-.335-1.68a.8.8 0 0 0-.43-.563 1.8 1.8 0 0 1-.853-.904l-.792-1.848A1.5 1.5 0 0 0 11.18 3z"/></svg>')
+        
+        df_total_cars = (
+            df_player_settings
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .select('car_name')
+            .unique()
+            .select(pl.len())
+        )
+
+        # https://shiny.posit.co/py/components/outputs/value-box/
+        return ui.value_box(
+            'Number of distinct cars',
+            f'{df_total_cars.item()}',
+            showcase=car_svg,
+            height='150px'
+        )
+
+    @render.ui
+    def vb_pct_series_car_chg():
+        gas_svg = ui.HTML('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="100%" fill="currentColor" class="bi bi-fuel-pump" viewBox="0 0 16 16"><path d="M3 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5z"/><path d="M1 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v8a2 2 0 0 1 2 2v.5a.5.5 0 0 0 1 0V8h-.5a.5.5 0 0 1-.5-.5V4.375a.5.5 0 0 1 .5-.5h1.495c-.011-.476-.053-.894-.201-1.222a.97.97 0 0 0-.394-.458c-.184-.11-.464-.195-.9-.195a.5.5 0 0 1 0-1q.846-.002 1.412.336c.383.228.634.551.794.907.295.655.294 1.465.294 2.081v3.175a.5.5 0 0 1-.5.501H15v4.5a1.5 1.5 0 0 1-3 0V12a1 1 0 0 0-1-1v4h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1zm9 0a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v13h8z"/></svg>')
+        
+        df_pct_camera_chg = (
+            df_player_settings
+            .join(df_games, on='id', how='inner')
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .select('group_id', 'car_name')
+            .group_by('group_id')
+            .agg(
+                pl.struct(pl.all().exclude('group_id')).n_unique().alias('distinct_combinations')
+            )
+            .with_columns(
+                pl.when(pl.col('distinct_combinations') > 1).then(1).otherwise(0).alias('mid_series_switch_flag')
+            )
+            .select('mid_series_switch_flag')
+            .mean()
+        )
+
+        # https://shiny.posit.co/py/components/outputs/value-box/
+        return ui.value_box(
+            'Percent of series with a car change',
+            f'{df_pct_camera_chg.item() * 100}%',
+            showcase=gas_svg,
+            height='150px'
+        )
+    
+    @render.ui
+    def vb_most_used_car():
+        arrow_svg = ui.HTML('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="100%" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>')
+        
+        df_reliable_car = (
+            df_player_settings
+            .join(df_players, left_on='player_id', right_on='id', how='inner')
+            .filter(pl.col('name') == input.player_select())
+            .group_by('car_name')
+            .agg(
+                pl.col('car_name').count().alias('cnt_car')
+            )
+            .sort('cnt_car', descending=True)
+            .select('car_name')
+            .limit(1)
+        )
+
+        # https://shiny.posit.co/py/components/outputs/value-box/
+        return ui.value_box(
+            'Most used car',
+            f'{df_reliable_car.item()}',
+            showcase=arrow_svg,
+            height='150px'
+        )
 
 app = App(app_ui, server)
