@@ -7,6 +7,7 @@ import great_tables as gt
 import altair as alt
 
 from helpers.load_data import load_r2_parquet
+from helpers.child_replays import get_lowest_groups
 
 from pages.home import home_page
 from pages.game_finder import game_finder_page
@@ -47,7 +48,7 @@ def server(input, output, session):
 
     ## Common helpers
     @render.ui
-    def player_selectize():
+    def player_single_selectize():
         lst_players = (
             df_players
             .select('name')
@@ -63,6 +64,31 @@ def server(input, output, session):
             dict_players,
             selected = 'ApparentlyJack'
         )
+    
+    @render.ui
+    def group_multi_selectize():
+        lst_groups = (
+            df_groups
+            .select('parent_group')
+            .sort('parent_group')
+            .get_column('parent_group')
+            .to_list()
+        )
+        dict_groups = {group : group for group in lst_groups}
+
+        return ui.input_selectize(
+            'groups_multi_select',
+            'Select replay group(s):',
+            dict_groups,
+            selected='1v1-events-spqzm3tx17',
+            multiple=True
+        )
+
+    @reactive.calc
+    def lowest_groups():
+        filtered_groups = input.groups_multi_select()
+        return get_lowest_groups(df_groups, list(filtered_groups))
+
 
     @render_altair
     def plot_map_count():
@@ -74,6 +100,17 @@ def server(input, output, session):
     @render.ui
     def table_map_count():
         return gt.GT(df_map_count)
+
+
+    ## Game Finder
+    @render.data_frame
+    def df_matching_games():
+        df_relevant_games = (
+            df_games
+            .filter(pl.col('group_id').is_in(lowest_groups()))
+        )
+
+        return render.DataGrid(df_relevant_games.rename({col: col.replace('_', ' ') for col in df_relevant_games.columns}))
 
     ## Player settings
     @render.data_frame

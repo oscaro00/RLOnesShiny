@@ -3,7 +3,7 @@ from shiny import ui
 player_settings_page = ui.nav_panel(
     'Player Settings',
     ui.h1('Player Settings'),
-    ui.output_ui('player_selectize'),
+    ui.output_ui('player_single_selectize'),
     ui.h3('Camera Settings'),
     ui.row(
         ui.column(4, ui.output_ui('vb_count_unique_camera_settings')),
