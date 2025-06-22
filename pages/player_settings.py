@@ -1,5 +1,4 @@
-from shiny import App, reactive, render, ui
-from shinywidgets import render_altair, output_widget
+from shiny import ui
 
 player_settings_page = ui.nav_panel(
     'Player Settings',
